@@ -26,14 +26,14 @@ type Account struct {
 type Department struct {
 	gorm.Model
 	Department_Name      string
-	Department_Employees []Employee `gorm:"many2many:employee_departments;"`
+	Department_Employees []*Employee `gorm:"many2many:employee_departments;"`
 }
 
 // Employee Table
 type Employee struct {
 	gorm.Model
 	Employee_Name        string
-	Employee_Departments []Department `gorm:"many2many:employee_departments;"`
+	Employee_Departments []*Department `gorm:"many2many:employee_departments;"`
 }
 
 type JwtClaim struct {
@@ -63,7 +63,6 @@ func main() {
 		panic("failed to connect db")
 	}
 
-	/* 종속성 관리 고민중
 	//db.AutoMigrate(&Account{}, &Department{}, &Employee{}) // DB Table 생성
 	//db.Migrator().DropTable(&Account{}, &Department{}, &Employee{}, "employee_departments") // DB Table 삭제
 	//db.Create(&Employee{Employee_Name: "KMC"})
@@ -72,10 +71,17 @@ func main() {
 	//db.Create(&Department{Department_Name: "A"})
 	//db.Create(&Department{Department_Name: "B"})
 
-
-	//var employee, employee2 Employee
-	//var employees []Employee
+	//var employee Employee
+	var employees []Employee
 	//var department Department
+
+	db.Find(&employees)
+
+	fmt.Println(employees)
+
+	//db.Where("Department_Name=?", "B").Find(&department)
+	//db.Model(&department).Association("Department_Employees").Find(&employees)
+	//fmt.Println(employees)
 
 	// 기존에 존재하는 employee, department로 association 만들기
 	// 이렇게 할 경우 employee_departments Table에 새로 Association이 추가됨!
@@ -98,7 +104,6 @@ func main() {
 	//db.Model(&employee).Association("Employee_Departments").Find(&department)
 	//db.Model(&employee).Association("Employee_Departments").Delete(&department) // 종속성 삭제
 	//db.Model(&employee2).Association("Employee_Departments").Clear()
-	*/
 
 	// API Server Open
 	r := SetupRouter()
@@ -195,9 +200,22 @@ func SetupRouter() *gin.Engine {
 		}
 
 		// Use를 통해 Middleware인 AuthorizeAccount를 가져와 MiddleWare에서 검증 진행
-		// 이후 검증이 완료되면 GET을 통해서 Account profile을 가져오게 함
-		protected := api.Group("/protected").Use(AuthorizeAccount())
+		department := api.Group("/department").Use(AuthorizeAccount())
 		{
+			department.GET("/", ReadDepartment)
+			department.PUT("/:id/:new", UpdateDepartment)
+			department.POST("/:department_name", AddDepartment)
+			department.DELETE("/:department_name", DeleteDepartment)
+		}
+		employee := api.Group("/employee").Use(AuthorizeAccount())
+		{
+			employee.GET("/", ReadEmployee)
+			employee.PUT("/:id/:new", UpdateEmployee)
+			employee.POST("/:employee_name", AddEmployee)
+			employee.DELETE("/:employee_name", DeleteEmployee)
+		}
+
+		/*
 			protected.GET("/profile", Profile)
 			protected.POST("/addDepartment/:department_name", AddDepartment)
 			protected.POST("/deleteDepartment/:department_name", DeleteDepartment)
@@ -205,7 +223,7 @@ func SetupRouter() *gin.Engine {
 			protected.POST("/deleteEmployee/:employee_name", DeleteEmployee)
 			protected.POST("/addEmployeeDepartment/:employee_name/:department_name", AddEmployeeDepartment)
 			protected.POST("/deleteEmployeeDepartment/:employee_name/:department_name", DeleteEmployeeDepartment)
-		}
+		*/
 	}
 
 	return r
@@ -310,9 +328,10 @@ func Login(c *gin.Context) {
 	c.JSON(http.StatusOK, tokenResponse)
 }
 
-/* 토큰 인증된 사용자(일명 관리자)가 사용할 API Handler들 */
-/* 새로운 Department를 추가 */
-func AddDepartment(c *gin.Context) { // localhost:8080/api/protected/addDepartment/:department_name
+/* 토큰 인증된 사용자(일명 관리자)가 사용할 API Handler들(CRUD) */
+
+/* 새로운 Department를 추가(C) */
+func AddDepartment(c *gin.Context) {
 	department_name := c.Param("department_name")
 
 	result := db.Create(&Department{Department_Name: department_name})
@@ -331,8 +350,41 @@ func AddDepartment(c *gin.Context) { // localhost:8080/api/protected/addDepartme
 	})
 }
 
-/* 기존의 Department 삭제 */
-func DeleteDepartment(c *gin.Context) { //localhost:8080/api/protected/deleteDepartment/:department_name
+/* Department Table 불러오기(R) */
+func ReadDepartment(c *gin.Context) { // localhost:8080/api/department/ (GET)
+	var departments []Department
+	result := db.Find(&departments)
+
+	if result.Error != nil {
+		log.Println(result.Error)
+
+		c.String(http.StatusInternalServerError, "READ error")
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, departments)
+}
+
+/* 기존의 Department 내용 수정(U) */
+func UpdateDepartment(c *gin.Context) { // localhost:8080/api/department/:id/:new
+	var department Department
+	dataId := c.Param("id")
+	newName := c.Param("new")
+
+	result := db.Model(&department).Where("id = ?", dataId).Update("Department_Name", newName)
+	if result.Error != nil {
+		log.Println(result.Error)
+		c.String(http.StatusInternalServerError, "UPDATE error")
+		c.Abort()
+		return
+	}
+
+	c.String(http.StatusOK, "Department Update Complete")
+}
+
+/* 기존의 Department 삭제(D) */
+func DeleteDepartment(c *gin.Context) {
 	department_name := c.Param("department_name")
 
 	var department Department
@@ -356,8 +408,8 @@ func DeleteDepartment(c *gin.Context) { //localhost:8080/api/protected/deleteDep
 
 }
 
-/* 새로운 Employee 추가 */
-func AddEmployee(c *gin.Context) { //localhost:8080/api/protected/addEmployee/:employee_name
+/* 새로운 Employee 추가(C) */
+func AddEmployee(c *gin.Context) {
 	employee_name := c.Param("employee_name")
 
 	result := db.Create(&Employee{Employee_Name: employee_name})
@@ -377,8 +429,41 @@ func AddEmployee(c *gin.Context) { //localhost:8080/api/protected/addEmployee/:e
 
 }
 
-/* 기존의 Emplpyee 삭제 */
-func DeleteEmployee(c *gin.Context) { //localhost:8080/api/protected/deleteEmployee/:employee_name
+/* Employee Table 불러오기(R) */
+func ReadEmployee(c *gin.Context) {
+	var employees []Employee
+	result := db.Find(&employees)
+
+	if result.Error != nil {
+		log.Println(result.Error)
+
+		c.String(http.StatusInternalServerError, "READ error")
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, employees)
+}
+
+/* 기존의 Employee 내용 수정(U) */
+func UpdateEmployee(c *gin.Context) {
+	var employee Employee
+	dataId := c.Param("id")
+	newName := c.Param("new")
+
+	result := db.Model(&employee).Where("id = ?", dataId).Update("Employee_Name", newName)
+	if result.Error != nil {
+		log.Println(result.Error)
+		c.String(http.StatusInternalServerError, "UPDATE error")
+		c.Abort()
+		return
+	}
+
+	c.String(http.StatusOK, "Employee Update Complete")
+}
+
+/* 기존의 Emplpyee 삭제(D) */
+func DeleteEmployee(c *gin.Context) {
 	employee_name := c.Param("employee_name")
 
 	var employee Employee
@@ -402,7 +487,7 @@ func DeleteEmployee(c *gin.Context) { //localhost:8080/api/protected/deleteEmplo
 }
 
 /* 사원에게 부서 만들어주기 */
-func AddEmployeeDepartment(c *gin.Context) { // localhost:8080/addEmployeeDepartment/:emplopyee_name/:department_name
+func AddEmployeeDepartment(c *gin.Context) {
 	employee_name := c.Param("employee_name")
 	department_name := c.Param("department_name")
 
@@ -430,7 +515,7 @@ func AddEmployeeDepartment(c *gin.Context) { // localhost:8080/addEmployeeDepart
 }
 
 /* 사원을 부서에서 제외시키기 */
-func DeleteEmployeeDepartment(c *gin.Context) { // localhost:8080/deleteEmployeeDepartment/:emplopyee_name/:department_name
+func DeleteEmployeeDepartment(c *gin.Context) {
 	employee_name := c.Param("employee_name")
 	department_name := c.Param("department_name")
 
