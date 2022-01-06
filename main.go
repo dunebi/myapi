@@ -1,14 +1,13 @@
 package main
 
 import (
-	"github.com/dunebi/myapi/JWT"
-
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
 
+	"github.com/dunebi/myapi/JWT"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
