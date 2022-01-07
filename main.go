@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/dunebi/myapi/JWT"
 	"github.com/gin-gonic/gin"
@@ -37,6 +39,7 @@ type Employee struct {
 
 var db *gorm.DB
 var err error
+var letterRunes = []rune("ABCDEFGHIJKLMNOPQRSPUGWSYZ")
 
 func main() {
 	dsn := "root:1234@tcp(127.0.0.1:3306)/myapi?charset=utf8mb4&parseTime=True&loc=Local"
@@ -55,12 +58,12 @@ func main() {
 	//db.Create(&Department{Department_Name: "B"})
 
 	//var employee Employee
-	var employees []Employee
+	//var employees []Employee
 	//var department Department
 
-	db.Find(&employees)
+	//db.Find(&employees)
 
-	fmt.Println(employees)
+	//fmt.Println(employees)
 
 	//db.Where("Department_Name=?", "B").Find(&department)
 	//db.Model(&department).Association("Department_Employees").Find(&employees)
@@ -88,10 +91,35 @@ func main() {
 	//db.Model(&employee).Association("Employee_Departments").Delete(&department) // 종속성 삭제
 	//db.Model(&employee2).Association("Employee_Departments").Clear()
 
+	/*
+		// employee 1000명 생성
+		employees := make([]Employee, 1000)
+		var name string
+		for i := 0; i < 1000; i++ {
+			name = RandString(3)
+			employees[i].Employee_Name = name
+			//employees[i].CreatedAt = time.Now().AddDate(0, 0, -7) // 일주일 전 입사로 생성할 때
+		}
+		db.Create(&employees)
+	*/
+
+	// SQL : 생성된지 일주일 이상 된 사원 조회
+	// select * from employees where (TO_DAYS(SYSDATE()) - TO_DAYS(created_at)) >= 7;
+
 	// API Server Open
 	r := SetupRouter()
 
 	r.Run(":8080")
+}
+
+/* Random String으로 이름 이니셜 생성 */
+func RandString(n int) string {
+	rand.Seed(time.Now().UnixNano())
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
 }
 
 /* Account Table 에 데이터추가 */
@@ -124,10 +152,6 @@ func (account *Account) CheckPassword(pwd string) error {
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	r.GET("/ping", func(c *gin.Context) { // GET(code, handler)
-		c.String(200, "pong")
-	})
-
 	// To run in Postman
 	api := r.Group("/api")
 	{
@@ -149,21 +173,12 @@ func SetupRouter() *gin.Engine {
 		employee := api.Group("/employee").Use(AuthorizeAccount())
 		{
 			employee.GET("/", ReadEmployee)
-			employee.GET("/:name", SearchEmployeeByName)
+			employee.GET("/name/:name", SearchEmployeeByName)
+			employee.GET("/day/:days", SearchEmployeeByDays)
 			employee.PUT("/:id/:new", UpdateEmployee)
 			employee.POST("/:name", AddEmployee)
 			employee.DELETE("/:id", DeleteEmployee)
 		}
-
-		/*
-			protected.GET("/profile", Profile)
-			protected.POST("/addDepartment/:department_name", AddDepartment)
-			protected.POST("/deleteDepartment/:department_name", DeleteDepartment)
-			protected.POST("/addEmployee/:employee_name", AddEmployee)
-			protected.POST("/deleteEmployee/:employee_name", DeleteEmployee)
-			protected.POST("/addEmployeeDepartment/:employee_name/:department_name", AddEmployeeDepartment)
-			protected.POST("/deleteEmployeeDepartment/:employee_name/:department_name", DeleteEmployeeDepartment)
-		*/
 	}
 
 	return r
@@ -443,6 +458,25 @@ func DeleteEmployee(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"msg": "Delete Complete",
 	})
+}
+
+/* n일 이내 입사한 사원 조회 */
+func SearchEmployeeByDays(c *gin.Context) {
+	n := c.Param("days")
+	var employees []Employee
+
+	result := db.Where("TO_DAYS(SYSDATE()) - TO_DAYS(created_at) <= ?", n).Find(&employees)
+	if result.Error != nil {
+		log.Println(result.Error)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, employees)
 }
 
 /* 해당 이름의 모든 사원 조회 */
