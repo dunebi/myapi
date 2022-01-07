@@ -141,16 +141,18 @@ func SetupRouter() *gin.Engine {
 		department := api.Group("/department").Use(AuthorizeAccount())
 		{
 			department.GET("/", ReadDepartment)
+			department.GET("/:name", SearchDepartmentByName)
 			department.PUT("/:id/:new", UpdateDepartment)
-			department.POST("/:department_name", AddDepartment)
-			department.DELETE("/:department_name", DeleteDepartment)
+			department.POST("/:name", AddDepartment)
+			department.DELETE("/:id", DeleteDepartment)
 		}
 		employee := api.Group("/employee").Use(AuthorizeAccount())
 		{
 			employee.GET("/", ReadEmployee)
+			employee.GET("/:name", SearchEmployeeByName)
 			employee.PUT("/:id/:new", UpdateEmployee)
-			employee.POST("/:employee_name", AddEmployee)
-			employee.DELETE("/:employee_name", DeleteEmployee)
+			employee.POST("/:name", AddEmployee)
+			employee.DELETE("/:id", DeleteEmployee)
 		}
 
 		/*
@@ -270,7 +272,7 @@ func Login(c *gin.Context) {
 
 /* 새로운 Department를 추가(C) */
 func AddDepartment(c *gin.Context) {
-	department_name := c.Param("department_name")
+	department_name := c.Param("name")
 
 	result := db.Create(&Department{Department_Name: department_name})
 	if result.Error != nil {
@@ -323,14 +325,14 @@ func UpdateDepartment(c *gin.Context) { // localhost:8080/api/department/:id/:ne
 
 /* 기존의 Department 삭제(D) */
 func DeleteDepartment(c *gin.Context) {
-	department_name := c.Param("department_name")
+	department_id := c.Param("id")
 
 	var department Department
 
 	// Find Department
-	db.Where("Department_Name=?", department_name).Find(&department)
+	db.Where("id=?", department_id).Find(&department)
 	if department.ID == 0 { // 테이블에 이름이 일치하는 Department가 없으면 ID = 0 으로 반환
-		log.Println("Department name incorrect")
+		log.Println("Department id incorrect")
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"msg": "error deleting department",
@@ -343,12 +345,31 @@ func DeleteDepartment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"msg": "Delete Complete",
 	})
+}
 
+/* 해당 이름의 모든 부서 조회 */
+func SearchDepartmentByName(c *gin.Context) {
+	name := c.Param("name")
+
+	var departments []Department
+
+	result := db.Where("Department_Name = ?", name).Find(&departments)
+	if result.Error != nil {
+		log.Println(result.Error)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, departments)
 }
 
 /* 새로운 Employee 추가(C) */
 func AddEmployee(c *gin.Context) {
-	employee_name := c.Param("employee_name")
+	employee_name := c.Param("name")
 
 	result := db.Create(&Employee{Employee_Name: employee_name})
 	if result.Error != nil {
@@ -402,14 +423,14 @@ func UpdateEmployee(c *gin.Context) {
 
 /* 기존의 Emplpyee 삭제(D) */
 func DeleteEmployee(c *gin.Context) {
-	employee_name := c.Param("employee_name")
+	employee_id := c.Param("id")
 
 	var employee Employee
 
 	// Find employee
-	db.Where("Employee_Name=?", employee_name).Find(&employee)
+	db.Where("id=?", employee_id).Find(&employee)
 	if employee.ID == 0 {
-		log.Println("Employee name incorrect")
+		log.Println("Employee id incorrect")
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"msg": "error deleting employee",
@@ -422,6 +443,26 @@ func DeleteEmployee(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"msg": "Delete Complete",
 	})
+}
+
+/* 해당 이름의 모든 사원 조회 */
+func SearchEmployeeByName(c *gin.Context) {
+	name := c.Param("name")
+
+	var employees []Employee
+
+	result := db.Where("Employee_Name = ?", name).Find(&employees)
+	if result.Error != nil {
+		log.Println(result.Error)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, employees)
 }
 
 /* 사원에게 부서 만들어주기 */
