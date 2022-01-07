@@ -179,6 +179,12 @@ func SetupRouter() *gin.Engine {
 			employee.POST("/:name", AddEmployee)
 			employee.DELETE("/:id", DeleteEmployee)
 		}
+		assign := api.Group("/assign").Use(AuthorizeAccount())
+		{
+			assign.DELETE("/:eid/:did", DeleteEmployeeDepartment)
+			assign.POST("/:eid/:did", AddEmployeeDepartment)
+			assign.GET("/:did", ReadEmployeeInDepartment) // 부서에 속한 직원 명단 가져오기
+		}
 	}
 
 	return r
@@ -501,17 +507,17 @@ func SearchEmployeeByName(c *gin.Context) {
 
 /* 사원에게 부서 만들어주기 */
 func AddEmployeeDepartment(c *gin.Context) {
-	employee_name := c.Param("employee_name")
-	department_name := c.Param("department_name")
+	eid := c.Param("eid")
+	did := c.Param("did")
 
 	var employee Employee
 	var department Department
 
-	db.Where("Employee_Name = ?", employee_name).Find(&employee)
-	db.Where("Department_Name = ?", department_name).Find(&department)
+	db.Where("id = ?", eid).Find(&employee)
+	db.Where("id = ?", did).Find(&department)
 
 	if (employee.ID == 0) || (department.ID == 0) {
-		log.Println("Name error at employee or department")
+		log.Println("Id error at employee or department", employee.ID, department.ID)
 
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"msg": "error allocate department to employee",
@@ -522,27 +528,27 @@ func AddEmployeeDepartment(c *gin.Context) {
 
 	db.Model(&employee).Association("Employee_Departments").Append(&department)
 	c.JSON(http.StatusOK, gin.H{
-		"employee":   employee_name,
-		"department": department_name,
+		"employee":   employee.Employee_Name,
+		"department": department.Department_Name,
 	})
 }
 
 /* 사원을 부서에서 제외시키기 */
 func DeleteEmployeeDepartment(c *gin.Context) {
-	employee_name := c.Param("employee_name")
-	department_name := c.Param("department_name")
+	eid := c.Param("eid")
+	did := c.Param("did")
 
 	var employee Employee
 	var department Department
 
-	db.Where("Employee_Name = ?", employee_name).Find(&employee)
-	db.Where("Department_Name = ?", department_name).Find(&department)
+	db.Where("id = ?", eid).Find(&employee)
+	db.Where("id = ?", did).Find(&department)
 
 	if (employee.ID == 0) || (department.ID == 0) {
-		log.Println("Name error at employee or department")
+		log.Println("id error at employee or department")
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "error name at department or employee",
+			"msg": "error id at department or employee",
 		})
 		c.Abort()
 		return
@@ -551,8 +557,35 @@ func DeleteEmployeeDepartment(c *gin.Context) {
 	db.Model(&employee).Association("Employee_Departments").Delete(&department)
 	c.JSON(http.StatusOK, gin.H{
 		"msg":             "employee exited by department",
-		"department_name": department_name,
+		"department_name": department.Department_Name,
 	})
+}
+
+func ReadEmployeeInDepartment(c *gin.Context) {
+	did := c.Param("did")
+
+	var employees []Employee
+	var department Department
+
+	result := db.Where("id=?", did).Find(&department)
+	if result.Error != nil {
+		log.Println(result.Error.Error())
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+	log.Println(department)
+
+	db.Model(&department).Association("Department_Employees").Find(&employees)
+
+	c.JSON(http.StatusOK, gin.H{
+		"department id":   department.ID,
+		"department name": department.Department_Name,
+	})
+	c.JSON(http.StatusOK, employees)
 }
 
 /* 계정 정보를 반환하는 Profile Handler 작성(미들웨어에서 검증이 끝나면 이를 반환할 수 있도록 함. 검증용) */
