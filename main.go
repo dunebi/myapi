@@ -39,6 +39,7 @@ type Employee struct {
 }
 
 var db *gorm.DB
+
 var err error
 var letterRunes = []rune("ABCDEFGHIJKLMNOPQRSPUGWSYZ")
 
@@ -50,58 +51,6 @@ func main() {
 
 	//db.AutoMigrate(&Account{}, &Department{}, &Employee{}) // DB Table 생성
 	//db.Migrator().DropTable(&Account{}, &Department{}, &Employee{}, "employee_departments") // DB Table 삭제
-	//db.Create(&Employee{Employee_Name: "KMC"})
-	//db.Create(&Employee{Employee_Name: "IJY"})
-	//db.Create(&Employee{Employee_Name: "PMS"})
-	//db.Create(&Department{Department_Name: "A"})
-	//db.Create(&Department{Department_Name: "B"})
-
-	//var employee Employee
-	//var employees []Employee
-	//var department Department
-
-	//db.Find(&employees)
-
-	//fmt.Println(employees)
-
-	//db.Where("Department_Name=?", "B").Find(&department)
-	//db.Model(&department).Association("Department_Employees").Find(&employees)
-	//fmt.Println(employees)
-
-	// 기존에 존재하는 emplovar err errorName=?", "KMC").Find(&employee)
-	//db.Where("Department_Name=?", "B").Find(&department)
-	//fmt.Println(department)
-	//db.Model(&employee).Association("Employee_Departments").Append(&department)
-
-	//db.Where("Employee_Name=?", "PMS").Find(&employee2)
-	//db.Model(&employee2).Association("Employee_Departments").Append(&department)
-
-	//db.Model(&employee).Association("Employee_Departments").Append(&department)
-	// department가 없어도 association이 추가됨. 나중에 처리해야 할 부분????
-
-	//db.Model(&employees).Association("Employee_Departments").Find(&department)
-	//fmt.Println(employees)
-
-	//db.Where("Department_Name=?", "B").Delete(&Department{})
-	//db.Select("employee_departments").Delete(&department)
-	//db.Model(&employee).Association("Employee_Departments").Find(&department)
-	//db.Model(&employee).Association("Employee_Departments").Delete(&department) // 종속성 삭제
-	//db.Model(&employee2).Association("Employee_Departments").Clear()
-
-	/*
-		// employee 1000명 생성
-		employees := make([]Employee, 1000)
-		var name string
-		for i := 0; i < 1000; i++ {
-			name = RandString(3)
-			employees[i].Employee_Name = name
-			//employees[i].CreatedAt = time.Now().AddDate(0, 0, -7) // 일주일 전 입사로 생성할 때
-		}
-		db.Create(&employees)
-	*/
-
-	// SQL : 생성된지 일주일 이상 된 사원 조회
-	// select * from employees where (TO_DAYS(SYSDATE()) - TO_DAYS(created_at)) >= 7;
 
 	// API Server Open
 	r := SetupRouter()
@@ -183,7 +132,7 @@ func SetupRouter() *gin.Engine {
 		{
 			employee.GET("/", ReadEmployee)
 			employee.GET("/name/:name", SearchEmployeeByName)
-			employee.GET("/day/:days", SearchEmployeeByDays)
+			employee.GET("/day/:days", SearchEmployeeByDay)
 			employee.PUT("/:id/:new", UpdateEmployee)
 			employee.POST("/:name", AddEmployee)
 			employee.DELETE("/:id", DeleteEmployee)
@@ -295,7 +244,7 @@ func Login(c *gin.Context) {
 	tokenResponse := JWT.LoginResponse{ // string인 LoginResponse를 JSON으로 반환하기 위함
 		Token: signedToken,
 	}
-	fmt.Println(tokenResponse) // 형태 확인용
+	//fmt.Println(tokenResponse) // 형태 확인용
 	c.JSON(http.StatusOK, tokenResponse)
 }
 
@@ -322,9 +271,13 @@ func AddDepartment(c *gin.Context) {
 }
 
 /* Department Table 불러오기(R) */
-func ReadDepartment(c *gin.Context) { // localhost:8080/api/department/ (GET)
+func ReadDepartment(c *gin.Context) { // localhost:8080/api/department/?page= & limit= (GET)
 	var departments []Department
-	result := db.Find(&departments)
+	limit, page, sort := Paging(c)
+	offset := (page - 1) * limit
+
+	result := db.Limit(limit).Offset(offset).Order(sort).Find(&departments)
+	//result := db.Find(&departments)
 
 	if result.Error != nil {
 		log.Println(result.Error)
@@ -483,7 +436,7 @@ func DeleteEmployee(c *gin.Context) {
 }
 
 /* n일 이내 입사한 사원 조회 */
-func SearchEmployeeByDays(c *gin.Context) {
+func SearchEmployeeByDay(c *gin.Context) {
 	n := c.Param("days")
 	var employees []Employee
 
@@ -664,7 +617,7 @@ func Profile(c *gin.Context) {
 func AuthorizeAccount() gin.HandlerFunc {
 	return func(c *gin.Context) { // Handler를 return
 		clientToken := c.Request.Header.Get("Authorization") // Context의 header 내용 중 key가 "Authorization"인 내용의 value를 가져옴 --> 이게 Token이 됨!
-		if clientToken == "" {
+		if clientToken == "" {                               // No Header
 			c.JSON(http.StatusForbidden, gin.H{
 				"msg": "No Authorization header provided",
 			})
@@ -676,7 +629,7 @@ func AuthorizeAccount() gin.HandlerFunc {
 		extractedToken := strings.Split(clientToken, "Bearer ")
 		if len(extractedToken) == 2 { // {"Bearer ", [토큰 내용 string]}
 			clientToken = strings.TrimSpace(extractedToken[1])
-		} else {
+		} else { // Invalid Token Format
 			c.JSON(http.StatusBadRequest, gin.H{
 				"msg": "Incorrect Format of Authorization Token",
 			})
@@ -685,7 +638,7 @@ func AuthorizeAccount() gin.HandlerFunc {
 		}
 
 		claims, err := JWT.ValidateToken(clientToken)
-		if err != nil {
+		if err != nil { // Invalid Token
 			c.JSON(http.StatusUnauthorized, err.Error())
 			c.Abort()
 			return
