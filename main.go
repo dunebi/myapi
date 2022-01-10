@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,11 +43,9 @@ var err error
 var letterRunes = []rune("ABCDEFGHIJKLMNOPQRSPUGWSYZ")
 
 func main() {
-	dsn := "root:1234@tcp(127.0.0.1:3306)/myapi?charset=utf8mb4&parseTime=True&loc=Local"
-	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
-
+	err := InitDB()
 	if err != nil {
-		panic("failed to connect db")
+		panic("DB init error")
 	}
 
 	//db.AutoMigrate(&Account{}, &Department{}, &Employee{}) // DB Table 생성
@@ -69,9 +68,7 @@ func main() {
 	//db.Model(&department).Association("Department_Employees").Find(&employees)
 	//fmt.Println(employees)
 
-	// 기존에 존재하는 employee, department로 association 만들기
-	// 이렇게 할 경우 employee_departments Table에 새로 Association이 추가됨!
-	//db.Where("Employee_Name=?", "KMC").Find(&employee)
+	// 기존에 존재하는 emplovar err errorName=?", "KMC").Find(&employee)
 	//db.Where("Department_Name=?", "B").Find(&department)
 	//fmt.Println(department)
 	//db.Model(&employee).Association("Employee_Departments").Append(&department)
@@ -110,6 +107,18 @@ func main() {
 	r := SetupRouter()
 
 	r.Run(":8080")
+}
+
+/* DB를 생성(test를 위함) */
+func InitDB() (err error) {
+	dsn := "root:1234@tcp(127.0.0.1:3306)/myapi?charset=utf8mb4&parseTime=True&loc=Local"
+	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 /* Random String으로 이름 이니셜 생성 */
@@ -194,6 +203,7 @@ func SetupRouter() *gin.Engine {
 func Register(c *gin.Context) { // gin.Context를 사용. Handler 인 것으로 보임
 	var account Account
 	err := c.ShouldBindJSON(&account) // Context c의 내용을 JSON으로 바인딩해서 account에 넣는 것으로 보임
+
 	if err != nil {
 		log.Println(err) // fmt.Println과 달리 "log" 로 출력되어 조금 더 정보를 담고 있음
 
@@ -362,7 +372,9 @@ func DeleteDepartment(c *gin.Context) {
 		return
 	}
 
+	db.Model(&department).Association("Department_Employees").Clear()
 	db.Delete(&department)
+
 	c.JSON(http.StatusOK, gin.H{
 		"msg": "Delete Complete",
 	})
@@ -409,10 +421,14 @@ func AddEmployee(c *gin.Context) {
 
 }
 
-/* Employee Table 불러오기(R) */
+/* Employee Table 불러오기(R)_By Paging */
 func ReadEmployee(c *gin.Context) {
 	var employees []Employee
-	result := db.Find(&employees)
+	limit, page, sort := Paging(c)
+	offset := (page - 1) * limit
+
+	//result := db.Find(&employees)
+	result := db.Limit(limit).Offset(offset).Order(sort).Find(&employees)
 
 	if result.Error != nil {
 		log.Println(result.Error)
@@ -561,6 +577,7 @@ func DeleteEmployeeDepartment(c *gin.Context) {
 	})
 }
 
+/* 부서 내 소속된 사원 목록 출력 */
 func ReadEmployeeInDepartment(c *gin.Context) {
 	did := c.Param("did")
 
@@ -568,6 +585,10 @@ func ReadEmployeeInDepartment(c *gin.Context) {
 	var department Department
 
 	result := db.Where("id=?", did).Find(&department)
+
+	limit, page, sort := Paging(c)
+	offset := (page - 1) * limit
+
 	if result.Error != nil {
 		log.Println(result.Error.Error())
 
@@ -579,13 +600,36 @@ func ReadEmployeeInDepartment(c *gin.Context) {
 	}
 	log.Println(department)
 
-	db.Model(&department).Association("Department_Employees").Find(&employees)
+	//db.Model(&department).Association("Department_Employees").Find(&employees)
+	db.Limit(limit).Offset(offset).Order(sort).Model(&department).Association("Department_Employees").Find(&employees)
 
 	c.JSON(http.StatusOK, gin.H{
 		"department id":   department.ID,
 		"department name": department.Department_Name,
 	})
 	c.JSON(http.StatusOK, employees)
+}
+
+/* 페이징 처리 부분. HTTP Request에 Query를 통해서 변수를 받아온다 */
+func Paging(c *gin.Context) (limit int, page int, sort string) { // return은 limit, page, sort
+	sort = "id asc" // id는 모든 table에 있다는 점 이용해서 일단 id로 설정
+	query := c.Request.URL.Query()
+
+	for key, value := range query {
+		fmt.Println(key, value)
+		queryValue := value[len(value)-1]
+		switch key {
+		case "limit":
+			limit, _ = strconv.Atoi(queryValue)
+			break
+		case "page":
+			page, _ = strconv.Atoi(queryValue)
+			break
+			//case "sort":
+		}
+	}
+
+	return
 }
 
 /* 계정 정보를 반환하는 Profile Handler 작성(미들웨어에서 검증이 끝나면 이를 반환할 수 있도록 함. 검증용) */
@@ -649,7 +693,6 @@ func AuthorizeAccount() gin.HandlerFunc {
 
 		c.Set("account_Id", claims.Account_Id)
 
-		//fmt.Println("JWT Validation Complete")
 		c.Next()
 	}
 }
