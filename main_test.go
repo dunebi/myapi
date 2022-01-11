@@ -82,6 +82,27 @@ func TestLogin(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestLoginBySetupRouter(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+
+	account := JWT.LoginPayload{
+		Account_Id:  "apitest",
+		Account_Pwd: "1234",
+	}
+	payload, err := json.Marshal(&account)
+	assert.NoError(t, err)
+
+	router := SetupRouter()
+	w := httptest.NewRecorder()
+	request, err := http.NewRequest("POST", "/api/public/login", bytes.NewBuffer(payload))
+	assert.NoError(t, err)
+
+	router.ServeHTTP(w, request)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestLoginInvalidJSON(t *testing.T) {
 	account := "gotest"
 
@@ -205,18 +226,13 @@ func TestAddDepartment(t *testing.T) {
 	assert.NoError(t, err)
 
 	var result map[string]interface{}
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.POST("/api/department/:name", AddDepartment)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("POST", "/api/department/Test Department", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -237,18 +253,13 @@ func TestReadDepartment(t *testing.T) {
 	assert.NoError(t, err)
 
 	var results []Department
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/department/", ReadDepartment)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "/api/department/", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -267,18 +278,13 @@ func TestReadDepartmentPaging(t *testing.T) {
 	assert.NoError(t, err)
 
 	var results []Department
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/department/", ReadDepartment)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "/api/department/?page=2&limit=1", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -297,18 +303,13 @@ func TestReadDepartmentInvalidPaging(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/department/", ReadDepartment)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "/api/department/?page=-1&limit=-1", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -323,18 +324,13 @@ func TestUpdateDepartment(t *testing.T) {
 	assert.NoError(t, err)
 	var result Department
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.PUT("/api/department/:id/:new")
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("PUT", "/api/department/1/A", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -351,16 +347,12 @@ func TestDeleteDepartment(t *testing.T) {
 	assert.NoError(t, err)
 	var result Department
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.DELETE("/api/department/:id", DeleteDepartment)
 
 	test := Department{ // 지울 data 정보
 		Department_Name: "deleteTest",
@@ -368,7 +360,6 @@ func TestDeleteDepartment(t *testing.T) {
 	createResult := db.Create(&test) // 지울 data 넣기
 	assert.NoError(t, createResult.Error)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	requrl := "/api/department/" + strconv.FormatUint(uint64(test.ID), 10)
 	request, _ := http.NewRequest("DELETE", requrl, nil)
@@ -386,18 +377,13 @@ func TestDeleteDepartmentInvalidDid(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.DELETE("/api/department/:id", DeleteDepartment)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("DELETE", "/api/department/-1", nil) // Use invalid department id
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -411,18 +397,13 @@ func TestSearchDepartmentByName(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/department/:name", SearchDepartmentByName)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "/api/department/A", nil) // Search Department which name is 'A'
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -439,18 +420,13 @@ func TestAddEmployee(t *testing.T) {
 	assert.NoError(t, err)
 
 	var result map[string]interface{}
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.POST("/api/employee/:name", AddEmployee)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("POST", "/api/employee/Test Employee", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -463,7 +439,32 @@ func TestAddEmployee(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "Test Employee", result["msg"])
 
-	db.Unscoped().Where("Employee_Name = ?", "Test Employee").Delete(&Employee{})
+	//db.Unscoped().Where("Employee_Name = ?", "Test Employee").Delete(&Employee{})
+}
+
+func TestAddEmployeeBatch(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+
+	var result map[string]interface{}
+	token, err := JWT.GenerateToken("gotest")
+	assert.NoError(t, err)
+
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.POST("/api/employee/batch/:count/:days", AddEmployeeBatch)
+
+	w := httptest.NewRecorder()
+	request, _ := http.NewRequest("POST", "/api/employee/batch/150/3", nil)
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	router.ServeHTTP(w, request)
+
+	err = json.Unmarshal(w.Body.Bytes(), &result)
+	assert.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "batch create complete", result["msg"])
 }
 
 func TestReadEmployee(t *testing.T) {
@@ -471,18 +472,13 @@ func TestReadEmployee(t *testing.T) {
 	assert.NoError(t, err)
 
 	var results []Employee
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/employee/", ReadEmployee)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "/api/employee/", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -501,18 +497,13 @@ func TestReadEmployeePaging(t *testing.T) {
 	assert.NoError(t, err)
 
 	var results []Employee
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/employee/", ReadEmployee)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "/api/employee/?page=2&limit=5", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -531,18 +522,13 @@ func TestReadEmployeeInvalidPaging(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/employee/", ReadEmployee)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("GET", "/api/employee/?page=-1&limit=-1", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -557,18 +543,13 @@ func TestUpdateEmployee(t *testing.T) {
 	assert.NoError(t, err)
 	var result Employee
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.PUT("/api/employee/:id/:new", UpdateEmployee)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("PUT", "/api/employee/1/UJS", nil) // id=1인 employee의 name을 UJS로 UPDATE
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -585,16 +566,12 @@ func TestDeleteEmployee(t *testing.T) {
 	assert.NoError(t, err)
 	var result Employee
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.DELETE("/api/employee/:id", DeleteEmployee)
 
 	test := Employee{ // 지울 data 정보
 		Employee_Name: "deleteTest",
@@ -602,10 +579,8 @@ func TestDeleteEmployee(t *testing.T) {
 	createResult := db.Create(&test) // 지울 data 넣기
 	assert.NoError(t, createResult.Error)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	requrl := "/api/employee/" + strconv.FormatUint(uint64(test.ID), 10)
-	//fmt.Println(requrl)
 	request, _ := http.NewRequest("DELETE", requrl, nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 
@@ -620,18 +595,13 @@ func TestDeleteEmployeeInvalidEid(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.DELETE("/api/employee/:id", DeleteEmployee)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("DELETE", "/api/employee/-1", nil) // Use invalid department id
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -646,20 +616,15 @@ func TestSearchEmployeeByName(t *testing.T) {
 	assert.NoError(t, err)
 	var results []Employee
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/employee/name/:name", SearchEmployeeByName)
 
-	router := SetupRouter()
 	w := httptest.NewRecorder()
-	request, _ := http.NewRequest("GET", "/api/employee/name/IJY", nil) // Search Department which name is 'A'
+	request, _ := http.NewRequest("GET", "/api/employee/name/Test Employee", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	router.ServeHTTP(w, request)
@@ -676,19 +641,14 @@ func TestSearchEmployeeByDay(t *testing.T) {
 	assert.NoError(t, err)
 	var results []Employee
 
-	account := Account{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-	token, err := JWT.GenerateToken(account.Account_Id)
+	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
-	pwd, err := HashPassword(account.Account_Pwd)
-	assert.NoError(t, err)
-	account.Account_Pwd = pwd
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/employee/day/:days", SearchEmployeeByDay)
 
 	days := 4
-	router := SetupRouter()
 	w := httptest.NewRecorder()
 	requrl := "/api/employee/day/" + strconv.Itoa(days)
 	request, _ := http.NewRequest("GET", requrl, nil) // Search Department which name is 'A'
@@ -701,4 +661,197 @@ func TestSearchEmployeeByDay(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	//fmt.Println(results)
+}
+
+func TestSearchEmployeeByDayInvalidPaging(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+
+	token, err := JWT.GenerateToken("gotest")
+	assert.NoError(t, err)
+
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/employee/day/:days", SearchEmployeeByDay)
+
+	days := 4
+	w := httptest.NewRecorder()
+	requrl := "/api/employee/day/" + strconv.Itoa(days) + "?page=-1&limit=-1"
+	request, _ := http.NewRequest("GET", requrl, nil)
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	router.ServeHTTP(w, request)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestSearchEmployeeByDayPaging(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+	var results []Employee
+
+	token, err := JWT.GenerateToken("gotest")
+	assert.NoError(t, err)
+
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/employee/day/:days", SearchEmployeeByDay)
+
+	days := 4
+	w := httptest.NewRecorder()
+	requrl := "/api/employee/day/" + strconv.Itoa(days) + "?page=1&limit=1" //하나는 data가 있을 것이라고 가정
+	request, _ := http.NewRequest("GET", requrl, nil)
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	router.ServeHTTP(w, request)
+
+	err = json.Unmarshal(w.Body.Bytes(), &results)
+	assert.NoError(t, err)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, 1, len(results))
+}
+
+func TestAddEmployeeDepartment(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+
+	token, err := JWT.GenerateToken("gotest")
+	assert.NoError(t, err)
+
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.POST("/api/assign/:eid/:did", AddEmployeeDepartment)
+
+	w := httptest.NewRecorder()
+	request, _ := http.NewRequest("POST", "/api/assign/2/3", nil)
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	router.ServeHTTP(w, request)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestAddEmployeeDepartmentInvalidId(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+
+	token, err := JWT.GenerateToken("gotest")
+	assert.NoError(t, err)
+
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.POST("/api/assign/:eid/:did", AddEmployeeDepartment)
+
+	w := httptest.NewRecorder()
+	request, _ := http.NewRequest("POST", "/api/assign/-1/-1", nil)
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	router.ServeHTTP(w, request)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestDeleteEmployeeDepartment(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+
+	token, err := JWT.GenerateToken("gotest")
+	assert.NoError(t, err)
+
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.DELETE("/api/assign/:eid/:did", DeleteEmployeeDepartment)
+
+	w := httptest.NewRecorder()
+	request, _ := http.NewRequest("DELETE", "/api/assign/2/3", nil)
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	router.ServeHTTP(w, request)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestDeleteEmployeeDepartmentInvalidId(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+
+	token, err := JWT.GenerateToken("gotest")
+	assert.NoError(t, err)
+
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.DELETE("/api/assign/:eid/:did", DeleteEmployeeDepartment)
+
+	w := httptest.NewRecorder()
+	request, _ := http.NewRequest("DELETE", "/api/assign/-1/-1", nil)
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	router.ServeHTTP(w, request)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestReadEmployeeInDepartment(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+
+	token, err := JWT.GenerateToken("gotest")
+	assert.NoError(t, err)
+
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/assign/:did", ReadEmployeeInDepartment)
+
+	w := httptest.NewRecorder()
+	request, _ := http.NewRequest("GET", "/api/assign/3", nil) // did=3인 Department가 있다고 가정
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	router.ServeHTTP(w, request)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestReadEmployeeInDepartmentInvalidId(t *testing.T) {
+	err = InitDB()
+	assert.NoError(t, err)
+
+	token, err := JWT.GenerateToken("gotest")
+	assert.NoError(t, err)
+
+	router := gin.Default()
+	router.Use(AuthorizeAccount())
+	router.GET("/api/assign/:did", ReadEmployeeInDepartment)
+
+	w := httptest.NewRecorder()
+	request, _ := http.NewRequest("GET", "/api/assign/24000000", nil) // did=24000.. 인 Department가 없다고 가정
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	router.ServeHTTP(w, request)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestCheckPassword(t *testing.T) {
+	pwd, err := HashPassword("password")
+	assert.NoError(t, err)
+
+	account := Account{
+		Account_Id:  "gotest",
+		Account_Pwd: pwd,
+	}
+	err = account.CheckPassword("password")
+	assert.NoError(t, err)
+}
+
+func TestCheckPasswordInvalid(t *testing.T) {
+	pwd, err := HashPassword("password")
+	assert.NoError(t, err)
+
+	account := Account{
+		Account_Id:  "gotest",
+		Account_Pwd: pwd,
+	}
+	err = account.CheckPassword("passwordss")
+	assert.Equal(t, "crypto/bcrypt: hashedPassword is not the hash of the given password", err.Error())
 }

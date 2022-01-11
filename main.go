@@ -115,8 +115,11 @@ func SetupRouter() *gin.Engine {
 	{
 		public := api.Group("/public")
 		{
+			public.POST("/init", InitTable)
+			public.DELETE("/delete", DeleteTable)
 			public.POST("/login", Login)
 			public.POST("/register", Register)
+
 		}
 
 		// Use를 통해 Middleware인 AuthorizeAccount를 가져와 MiddleWare에서 검증 진행
@@ -135,6 +138,7 @@ func SetupRouter() *gin.Engine {
 			employee.GET("/day/:days", SearchEmployeeByDay)
 			employee.PUT("/:id/:new", UpdateEmployee)
 			employee.POST("/:name", AddEmployee)
+			employee.POST("/batch/:count/:days", AddEmployeeBatch)
 			employee.DELETE("/:id", DeleteEmployee)
 		}
 		assign := api.Group("/assign").Use(AuthorizeAccount())
@@ -146,6 +150,42 @@ func SetupRouter() *gin.Engine {
 	}
 
 	return r
+}
+
+/* Table 생성 */
+func InitTable(c *gin.Context) {
+	err := db.AutoMigrate(&Account{}, &Department{}, &Employee{}) // DB Table 생성
+	if err != nil {
+		log.Println(err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "Cannot Init Table",
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"msg": "Table Init",
+	})
+}
+
+/* Table 전체삭제 */
+func DeleteTable(c *gin.Context) {
+	err := db.Migrator().DropTable(&Account{}, &Department{}, &Employee{}, "employee_departments") // DB Table 삭제
+	if err != nil {
+		log.Println(err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "Cannot Delete Table",
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"msg": "Table Delete",
+	})
 }
 
 /* 회원가입 */
@@ -270,7 +310,7 @@ func AddDepartment(c *gin.Context) {
 	})
 }
 
-/* Department Table 불러오기(R) */
+/* Department Table 불러오기(R)_Paging 추가 */
 func ReadDepartment(c *gin.Context) { // localhost:8080/api/department/?page= & limit= (GET)
 	var departments []Department
 	limit, page, sort := Paging(c)
@@ -374,6 +414,47 @@ func AddEmployee(c *gin.Context) {
 
 }
 
+/* n일 전 입사한 사원 n명 한번에 만들기(Batch Create) */
+func AddEmployeeBatch(c *gin.Context) {
+	countString := c.Param("count")
+	daysString := c.Param("days")
+	var name string
+
+	count, _ := strconv.Atoi(countString)
+	days, _ := strconv.Atoi(daysString)
+	employees := make([]Employee, count)
+
+	if (count <= 0) || (days < 0) {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "error input param",
+		})
+		c.Abort()
+		return
+	}
+
+	for i := 0; i < count; i++ {
+		name = RandString(3) // 3글자 이름 이니셜 생성
+		employees[i].Employee_Name = name
+		employees[i].CreatedAt = time.Now().AddDate(0, 0, -days)
+	}
+	result := db.Create(&employees)
+	if result.Error != nil {
+		log.Println(result.Error)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "error creating employee",
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"input size": count,
+		"how many days from incoming day to today": days,
+		"msg": "batch create complete",
+	})
+}
+
 /* Employee Table 불러오기(R)_By Paging */
 func ReadEmployee(c *gin.Context) {
 	var employees []Employee
@@ -435,12 +516,16 @@ func DeleteEmployee(c *gin.Context) {
 	})
 }
 
-/* n일 이내 입사한 사원 조회 */
+/* n일 이내 입사한 사원 조회_Paging 추가 */
 func SearchEmployeeByDay(c *gin.Context) {
 	n := c.Param("days")
 	var employees []Employee
+	limit, page, sort := Paging(c)
+	offset := (page - 1) * limit
 
-	result := db.Where("TO_DAYS(SYSDATE()) - TO_DAYS(created_at) <= ?", n).Find(&employees)
+	//result := db.Where("TO_DAYS(SYSDATE()) - TO_DAYS(created_at) <= ?", n).Find(&employees)
+	result := db.Limit(limit).Offset(offset).Order(sort).Where(
+		"TO_DAYS(SYSDATE()) - TO_DAYS(created_at) <= ?", n).Find(&employees)
 	if result.Error != nil {
 		log.Println(result.Error)
 
@@ -541,12 +626,11 @@ func ReadEmployeeInDepartment(c *gin.Context) {
 
 	limit, page, sort := Paging(c)
 	offset := (page - 1) * limit
+	fmt.Println(department)
 
-	if result.Error != nil {
-		log.Println(result.Error.Error())
-
+	if (result.Error != nil) || (department.ID == 0) {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": result.Error.Error(),
+			"msg": "Error on Read Employees in Department",
 		})
 		c.Abort()
 		return
@@ -565,7 +649,7 @@ func ReadEmployeeInDepartment(c *gin.Context) {
 
 /* 페이징 처리 부분. HTTP Request에 Query를 통해서 변수를 받아온다 */
 func Paging(c *gin.Context) (limit int, page int, sort string) { // return은 limit, page, sort
-	sort = "id asc" // id는 모든 table에 있다는 점 이용해서 일단 id로 설정
+	sort = "id asc" // id는 모든 table에 있다는 점 이용해서 일단 id로 설정 후 오름차순으로
 	query := c.Request.URL.Query()
 
 	for key, value := range query {
