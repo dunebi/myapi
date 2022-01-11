@@ -49,10 +49,6 @@ func main() {
 		panic("DB init error")
 	}
 
-	//db.AutoMigrate(&Account{}, &Department{}, &Employee{}) // DB Table 생성
-	//db.Migrator().DropTable(&Account{}, &Department{}, &Employee{}, "employee_departments") // DB Table 삭제
-
-	// API Server Open
 	r := SetupRouter()
 
 	r.Run(":8080")
