@@ -506,6 +506,7 @@ func DeleteEmployee(c *gin.Context) {
 		return
 	}
 
+	db.Model(&employee).Association("Employee_Departments").Clear()
 	db.Delete(&employee)
 	c.JSON(http.StatusOK, gin.H{
 		"msg": "Delete Complete",
@@ -606,8 +607,9 @@ func DeleteEmployeeDepartment(c *gin.Context) {
 
 	db.Model(&employee).Association("Employee_Departments").Delete(&department)
 	c.JSON(http.StatusOK, gin.H{
-		"msg":             "employee exited by department",
-		"department_name": department.Department_Name,
+		"msg":        "employee exited by department",
+		"employee":   employee.Employee_Name,
+		"department": department.Department_Name,
 	})
 }
 
