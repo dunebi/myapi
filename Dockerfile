@@ -2,27 +2,19 @@ FROM golang:alpine AS builder
 
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
-    GOOS=linux
+    GOOS=linux \
+    PORT=8888
 
 WORKDIR /build
 
-COPY go.mod go.sum main.go ./
-COPY JWT ./JWT
+COPY . ./
 
 RUN go mod download
 
-# main 실행파일 빌드
-RUN go build -o main .
+# 실행파일 빌드
+RUN go build -o myapi .
 
-WORKDIR /dist
-
-RUN cp /build/main .
-
-FROM scratch
-
-COPY --from=builder /dist/main .
-
-ENTRYPOINT [ "./main" ]
+ENTRYPOINT [ "./myapi" ]
 
 # docker build --tag myapi:1.0 .
-# docker run --name myapi --network="host" myapi:1.0
+# docker run -d --name myapi --network="host" myapi:1.0
