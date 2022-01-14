@@ -64,54 +64,6 @@ func AddEmployee(c *gin.Context) {
 	})
 }
 
-/* 기존 사원에게 부서 추가(이름을 Param으로 받아옴) */
-func AddNewDepartment(c *gin.Context) {
-	eName := c.Param("name")
-	dName := c.Param("department")
-
-	var employees []Employee
-	db.Where("Employee_Name = ?", eName).Find(&employees)
-	if len(employees) > 1 {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg":     "There're employees with same name",
-			"can use": "/api/assign/:eid/:did",
-		})
-		c.Abort()
-		return
-	} else if len(employees) == 0 {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "No such employee",
-		})
-		c.Abort()
-		return
-	}
-
-	var department Department
-	db.Where("Department_Name = ?", dName).Find(&department)
-	if department.ID == 0 {
-		if dName == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"msg": "No Department Name",
-			})
-			c.Abort()
-			return
-		}
-		department.Department_Name = dName
-
-		c.JSON(http.StatusOK, gin.H{
-			"msg": "new department created",
-		})
-	}
-
-	db.Model(&employees[0]).Association("Employee_Departments").Append(&department)
-
-	c.JSON(http.StatusOK, gin.H{
-		"employee":   eName,
-		"department": dName,
-	})
-
-}
-
 /* n일 전 입사한 사원 n명 한번에 만들기(Batch Create) */
 func AddEmployeeBatch(c *gin.Context) {
 	countString := c.Param("count")
@@ -146,11 +98,7 @@ func AddEmployeeBatch(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"input size": count,
-		"how many days from incoming day to today": days,
-		"msg": "batch create complete",
-	})
+	c.JSON(http.StatusOK, employees)
 
 }
 
@@ -193,6 +141,35 @@ func UpdateEmployee(c *gin.Context) {
 
 /* 기존의 Emplpyee 삭제(D) */
 func DeleteEmployee(c *gin.Context) {
+	eName := c.Param("name")
+
+	var employees []Employee
+	db.Where("Employee_Name = ?", employees).Find(&employees)
+	db.Where("Employee_Name = ?", eName).Find(&employees)
+	if len(employees) > 1 {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"employee info": employees,
+			"msg":           "There're employees with same name",
+			"can use":       "/api/employee/id/:id",
+		})
+		c.Abort()
+		return
+	} else if len(employees) == 0 {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "No such employee",
+		})
+		c.Abort()
+		return
+	}
+
+	db.Model(&employees[0]).Association("Employee_Departments").Clear()
+	db.Delete(&employees[0])
+	c.JSON(http.StatusOK, gin.H{
+		"msg": "Delete Complete",
+	})
+}
+
+func DeleteEmployeById(c *gin.Context) {
 	employee_id := c.Param("id")
 
 	var employee Employee
@@ -225,7 +202,7 @@ func SearchEmployeeByDay(c *gin.Context) {
 
 	//result := db.Where("TO_DAYS(SYSDATE()) - TO_DAYS(created_at) <= ?", n).Find(&employees)
 	result := db.Limit(limit).Offset(offset).Order(sort).Where(
-		"TO_DAYS(SYSDATE()) - TO_DAYS(EntryTime) <= ?", n).Preload("Employee_Departments").Find(&employees)
+		"TO_DAYS(SYSDATE()) - TO_DAYS(entry_time) <= ?", n).Preload("Employee_Departments").Find(&employees)
 	if result.Error != nil {
 		log.Println(result.Error)
 

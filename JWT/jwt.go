@@ -28,7 +28,7 @@ func GenerateToken(account_id string) (signedToken string, err error) {
 	claims := &JwtClaim{ // Account ID와 만료에 대한 정보를 담고 있음
 		Account_Id: account_id,
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Local().Add(15 * time.Minute).Unix(), // 15분 뒤 만료
+			ExpiresAt: time.Now().Local().Add(60 * time.Minute).Unix(), // 60분 뒤 만료
 		},
 	}
 

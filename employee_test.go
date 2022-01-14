@@ -25,10 +25,10 @@ func TestAddEmployee(t *testing.T) {
 
 	router := gin.Default()
 	router.Use(AuthorizeAccount())
-	router.POST("/api/employee/:name", AddEmployee)
+	router.POST("/api/employee/:name/:department", AddEmployee)
 
 	w := httptest.NewRecorder()
-	request, _ := http.NewRequest("POST", "/api/employee/Test Employee", nil)
+	request, _ := http.NewRequest("POST", "/api/employee/Test Employee/Test Department", nil)
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	router.ServeHTTP(w, request)
@@ -37,16 +37,17 @@ func TestAddEmployee(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "Test Employee", result["msg"])
 
-	//db.Unscoped().Where("Employee_Name = ?", "Test Employee").Delete(&Employee{})
+	db.Where("Employee_Name = ?", "Test Employee").Association("Employee_Departments").Clear()
+	db.Unscoped().Where("Employee_Name=?", "Test Employee").Delete(&Employee{})
+	db.Unscoped().Where("Department_Name=?", "Test Department").Delete(&Department{})
 }
 
 func TestAddEmployeeBatch(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	var result map[string]interface{}
+	var result []Employee
 	token, err := JWT.GenerateToken("gotest")
 	assert.NoError(t, err)
 
@@ -64,7 +65,7 @@ func TestAddEmployeeBatch(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "batch create complete", result["msg"])
+	db.Unscoped().Delete(&result)
 }
 
 func TestReadEmployee(t *testing.T) {

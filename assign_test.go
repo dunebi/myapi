@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAddEmployeeDepartment(t *testing.T) {
+func TestAddEmployeeDepartmentById(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
@@ -22,7 +22,7 @@ func TestAddEmployeeDepartment(t *testing.T) {
 
 	router := gin.Default()
 	router.Use(AuthorizeAccount())
-	router.POST("/api/assign/:eid/:did", AddEmployeeDepartment)
+	router.POST("/api/assign/:eid/:did", AddEmployeeDepartmentById)
 
 	// Create Test Data
 	var result map[string]interface{}
@@ -64,7 +64,7 @@ func TestAddEmployeeDepartmentInvalidId(t *testing.T) {
 
 	router := gin.Default()
 	router.Use(AuthorizeAccount())
-	router.POST("/api/assign/:eid/:did", AddEmployeeDepartment)
+	router.POST("/api/assign/:eid/:did", AddEmployeeDepartmentById)
 
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("POST", "/api/assign/-1/-1", nil)
@@ -84,7 +84,7 @@ func TestDeleteEmployeeDepartment(t *testing.T) {
 
 	router := gin.Default()
 	router.Use(AuthorizeAccount())
-	router.DELETE("/api/assign/:eid/:did", DeleteEmployeeDepartment)
+	router.DELETE("/api/assign/:eid/:did", DeleteEmployeeDepartmentById)
 
 	// Create Test Data
 	var result map[string]interface{}
@@ -125,7 +125,7 @@ func TestDeleteEmployeeDepartmentInvalidId(t *testing.T) {
 
 	router := gin.Default()
 	router.Use(AuthorizeAccount())
-	router.DELETE("/api/assign/:eid/:did", DeleteEmployeeDepartment)
+	router.DELETE("/api/assign/:eid/:did", DeleteEmployeeDepartmentById)
 
 	w := httptest.NewRecorder()
 	request, _ := http.NewRequest("DELETE", "/api/assign/-1/-1", nil)

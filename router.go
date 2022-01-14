@@ -44,15 +44,16 @@ func SetupRouter() *gin.Engine {
 			employee.GET("/day/:days", SearchEmployeeByDay)
 			employee.PUT("/:id/:new", UpdateEmployee)
 			employee.POST("/:name/:department", AddEmployee)
-			employee.POST("/:name/:department/new", AddNewDepartment)
 			employee.POST("/batch/:count/:days", AddEmployeeBatch)
-			employee.DELETE("/:id", DeleteEmployee)
+			employee.DELETE("/:name", DeleteEmployee)
+			employee.DELETE("/id/:id", DeleteEmployeById)
 		}
 		assign := api.Group("/assign").Use(AuthorizeAccount())
 		{
-			assign.DELETE("/:eid/:did", DeleteEmployeeDepartment)
-			assign.POST("/:eid/:did", AddEmployeeDepartment)
-			assign.POST("/auto", AutoMatchEmployeeToDepartment) // 부서 없는 직원에게 부서 자동매칭
+			assign.POST("/:name/:department", AddEmployeeDepartment)
+			assign.POST("/id/:eid/:department", AddEmployeeDepartmentById)
+			assign.DELETE("/:name/:department", DeleteEmployeeDepartment)
+			assign.DELETE("/id/:eid/:department", DeleteEmployeeDepartmentById)
 		}
 	}
 
