@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,16 +19,16 @@ type Employee struct {
 	Employee_Departments []*Department `gorm:"many2many:employee_departments"`
 }
 
-type Data struct {
-	Name       string `json:"name" binding:"required"`
-	Department string `json:"department"`
+type eData struct {
+	EName string `json:"ename" binding:"required"`
+	DName string `json:"dname"`
 }
 
 /* 새로운 Employee 추가(C) */
 func AddEmployee(c *gin.Context) {
-	var data Data
-	employee_name := c.Param("name")
-	department_name := c.Param("department")
+	var data eData
+	var department Department
+	var employee Employee
 	err := c.ShouldBindJSON(&data)
 	if err != nil {
 		log.Println(err)
@@ -41,85 +39,33 @@ func AddEmployee(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	fmt.Println(data)
-	c.Abort()
-	return
+	//fmt.Println(data)
 
-	var department Department
-	db.Where("Department_Name = ?", department_name).Find(&department)
-	if department.ID == 0 {
-		if department_name == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"msg": "No Department Name",
+	employee.Employee_Name = data.EName
+	if data.DName == "" { // No Department Data. Create new employee with no department info
+		db.Create(&employee)
+		c.JSON(http.StatusOK, gin.H{
+			"msg":      "new employee without department created",
+			"employee": employee,
+		})
+		return
+	} else {
+		db.Where("Department_Name = ?", data.DName).Find(&department)
+		if department.ID == 0 { // No such department. Do not Create new employee
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"msg": "No such department. Use correct name",
 			})
-			c.Abort()
 			return
 		}
-		department.Department_Name = department_name
+		db.Create(&employee)
+		db.Model(&employee).Association("Employee_Departments").Append(&department)
 
 		c.JSON(http.StatusOK, gin.H{
-			"msg": "new department created with new employee",
+			"msg":        "new employee with department created",
+			"employee":   employee,
+			"department": department,
 		})
 	}
-	employee := Employee{
-		Employee_Name: employee_name,
-	}
-
-	result := db.Create(&employee)
-	if result.Error != nil {
-		log.Println(result.Error)
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "error creating employee",
-		})
-		c.Abort()
-		return
-	}
-	db.Model(&employee).Association("Employee_Departments").Append(&department)
-
-	c.JSON(http.StatusOK, gin.H{
-		"new employee": employee_name,
-		"employeeID":   employee.ID,
-		"department":   department_name,
-	})
-}
-
-/* n일 전 입사한 사원 n명 한번에 만들기(Batch Create) */
-func AddEmployeeBatch(c *gin.Context) {
-	countString := c.Param("count")
-	daysString := c.Param("days")
-	var name string
-
-	count, _ := strconv.Atoi(countString)
-	days, _ := strconv.Atoi(daysString)
-	employees := make([]Employee, count)
-
-	if (count <= 0) || (days < 0) {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "error input param",
-		})
-		c.Abort()
-		return
-	}
-
-	for i := 0; i < count; i++ {
-		name = RandString(3) // 3글자 이름 이니셜 생성
-		employees[i].Employee_Name = name
-		employees[i].EntryTime = time.Now()
-	}
-	result := db.Create(&employees)
-	if result.Error != nil {
-		log.Println(result.Error)
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "error creating employee",
-		})
-		c.Abort()
-		return
-	}
-
-	c.JSON(http.StatusOK, employees)
-
 }
 
 /* Employee Table 불러오기(R)_By Paging */
@@ -134,7 +80,9 @@ func ReadEmployee(c *gin.Context) {
 	if result.Error != nil {
 		log.Println(result.Error)
 
-		c.String(http.StatusInternalServerError, "READ error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "Read Error",
+		})
 		c.Abort()
 		return
 	}
@@ -146,12 +94,25 @@ func ReadEmployee(c *gin.Context) {
 func UpdateEmployee(c *gin.Context) {
 	var employee Employee
 	dataId := c.Param("id")
-	newName := c.Param("new")
 
-	result := db.Model(&employee).Where("id = ?", dataId).Update("Employee_Name", newName)
+	var data eData
+	err := c.ShouldBindJSON(&data)
+	if err != nil {
+		log.Println(err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "invalid json",
+		})
+		c.Abort()
+		return
+	}
+
+	result := db.Model(&employee).Where("id = ?", dataId).Update("Employee_Name", data.EName)
 	if result.Error != nil {
 		log.Println(result.Error)
-		c.String(http.StatusInternalServerError, "UPDATE error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "Update error",
+		})
 		c.Abort()
 		return
 	}
