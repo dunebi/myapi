@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -65,7 +64,7 @@ func Paging(c *gin.Context) (limit int, page int, sort string) { // return은 li
 	query := c.Request.URL.Query()
 
 	for key, value := range query {
-		fmt.Println(key, value)
+		//fmt.Println(key, value)
 		queryValue := value[len(value)-1]
 		switch key {
 		case "limit":

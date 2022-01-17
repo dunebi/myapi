@@ -17,22 +17,31 @@ type Department struct {
 
 /* 새로운 Department를 추가(C) */
 func AddDepartment(c *gin.Context) {
-	department_name := c.Param("name")
+	var department Department
+	err := c.ShouldBindJSON(&department)
 
-	result := db.Create(&Department{Department_Name: department_name})
-	if result.Error != nil {
-		log.Println(result.Error)
+	if err != nil {
+		log.Println(err)
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "error creating department",
+			"msg": "invalid json",
 		})
 		c.Abort()
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"new department": department_name,
-	})
+	result := db.Create(&department)
+	if result.Error != nil {
+		log.Println(result.Error)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "error creating new department",
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, department)
 }
 
 /* Department Table 불러오기(R)_Paging 추가 */
@@ -47,7 +56,9 @@ func ReadDepartment(c *gin.Context) { // localhost:8080/api/department/?page= & 
 	if result.Error != nil {
 		log.Println(result.Error)
 
-		c.String(http.StatusInternalServerError, "READ error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "READ error",
+		})
 		c.Abort()
 		return
 	}
@@ -66,7 +77,9 @@ func ReadDepartmentOnly(c *gin.Context) {
 	if result.Error != nil {
 		log.Println(result.Error)
 
-		c.String(http.StatusInternalServerError, "READ error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "READ error",
+		})
 		c.Abort()
 		return
 	}
@@ -83,12 +96,16 @@ func UpdateDepartment(c *gin.Context) { // localhost:8080/api/department/:id/:ne
 	result := db.Model(&department).Where("id = ?", dataId).Update("Department_Name", newName)
 	if result.Error != nil {
 		log.Println(result.Error)
-		c.String(http.StatusInternalServerError, "UPDATE error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "UPDATE error",
+		})
 		c.Abort()
 		return
 	}
 
-	c.String(http.StatusOK, "Department Update Complete")
+	c.JSON(http.StatusOK, gin.H{
+		"msg": "Department Update Complete",
+	})
 }
 
 /* 기존의 Department 삭제(D) */

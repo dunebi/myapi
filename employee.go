@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
@@ -20,10 +21,29 @@ type Employee struct {
 	Employee_Departments []*Department `gorm:"many2many:employee_departments"`
 }
 
+type Data struct {
+	Name       string `json:"name" binding:"required"`
+	Department string `json:"department"`
+}
+
 /* 새로운 Employee 추가(C) */
 func AddEmployee(c *gin.Context) {
+	var data Data
 	employee_name := c.Param("name")
 	department_name := c.Param("department")
+	err := c.ShouldBindJSON(&data)
+	if err != nil {
+		log.Println(err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "invalid json",
+		})
+		c.Abort()
+		return
+	}
+	fmt.Println(data)
+	c.Abort()
+	return
 
 	var department Department
 	db.Where("Department_Name = ?", department_name).Find(&department)
@@ -136,7 +156,9 @@ func UpdateEmployee(c *gin.Context) {
 		return
 	}
 
-	c.String(http.StatusOK, "Employee Update Complete")
+	c.JSON(http.StatusOK, gin.H{
+		"msg": "Employee Update Complete",
+	})
 }
 
 /* 기존의 Emplpyee 삭제(D) */
