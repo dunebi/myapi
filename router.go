@@ -33,8 +33,8 @@ func SetupRouter() *gin.Engine {
 			department.GET("/", ReadDepartment)
 			department.GET("/:name", SearchDepartmentByName)
 			department.GET("/:name/employee", ReadEmployeeInDepartment) // 부서에 속한 직원 명단 가져오기
-			department.PUT("/:id/:new", UpdateDepartment)
-			department.POST("/:name", AddDepartment)
+			department.PUT("/", UpdateDepartment)
+			department.POST("/", AddDepartment)
 			department.DELETE("/:name", DeleteDepartment)
 		}
 		employee := api.Group("/employee").Use(AuthorizeAccount())
@@ -42,9 +42,8 @@ func SetupRouter() *gin.Engine {
 			employee.GET("/", ReadEmployee)
 			employee.GET("/name/:name", SearchEmployeeByName)
 			employee.GET("/day/:days", SearchEmployeeByDay)
-			employee.PUT("/:id/:new", UpdateEmployee)
-			employee.POST("/:name/:department", AddEmployee)
-			employee.POST("/batch/:count/:days", AddEmployeeBatch)
+			employee.PUT("/:id", UpdateEmployee)
+			employee.POST("/", AddEmployee)
 			employee.DELETE("/:name", DeleteEmployee)
 			employee.DELETE("/id/:id", DeleteEmployeById)
 		}

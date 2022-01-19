@@ -15,23 +15,53 @@ type Department struct {
 	Department_Employees []*Employee `gorm:"many2many:employee_departments"`
 }
 
+type dData struct {
+	DName []string `json:"dname" binding:"required"`
+}
+
+type UpdateData struct {
+	PrevName string `json:"prev" binding:"required"`
+	NewName  string `json:"new" binding:"required"`
+}
+
 /* 새로운 Department를 추가(C) */
 func AddDepartment(c *gin.Context) {
-	department_name := c.Param("name")
+	var data dData
+	var department Department
+	msg := make([]string, 0, 3)
+	var temp string
+	err := c.ShouldBindJSON(&data)
 
-	result := db.Create(&Department{Department_Name: department_name})
-	if result.Error != nil {
-		log.Println(result.Error)
+	if err != nil {
+		log.Println(err)
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "error creating department",
+			"msg": "invalid json",
 		})
 		c.Abort()
 		return
 	}
 
+	for i := 0; i < len(data.DName); i++ {
+		department.Department_Name = data.DName[i]
+		result := db.Create(&Department{Department_Name: data.DName[i]})
+		if result.Error != nil {
+			log.Println(result.Error)
+			temp = data.DName[i] + ": Create Fail!"
+			msg = append(msg, temp)
+
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"msg":           msg,
+				"not processed": data.DName[i:],
+			})
+			return
+		}
+		temp = data.DName[i] + ": Create Success"
+		msg = append(msg, temp)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"new department": department_name,
+		"msg": msg,
 	})
 }
 
@@ -47,7 +77,9 @@ func ReadDepartment(c *gin.Context) { // localhost:8080/api/department/?page= & 
 	if result.Error != nil {
 		log.Println(result.Error)
 
-		c.String(http.StatusInternalServerError, "READ error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "READ error",
+		})
 		c.Abort()
 		return
 	}
@@ -66,7 +98,9 @@ func ReadDepartmentOnly(c *gin.Context) {
 	if result.Error != nil {
 		log.Println(result.Error)
 
-		c.String(http.StatusInternalServerError, "READ error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "READ error",
+		})
 		c.Abort()
 		return
 	}
@@ -75,20 +109,33 @@ func ReadDepartmentOnly(c *gin.Context) {
 }
 
 /* 기존의 Department 내용 수정(U) */
-func UpdateDepartment(c *gin.Context) { // localhost:8080/api/department/:id/:new
+func UpdateDepartment(c *gin.Context) { // localhost:8080/api/department
 	var department Department
-	dataId := c.Param("id")
-	newName := c.Param("new")
+	var data UpdateData
+	err := c.ShouldBindJSON(&data)
+	if err != nil {
+		log.Println(err)
 
-	result := db.Model(&department).Where("id = ?", dataId).Update("Department_Name", newName)
-	if result.Error != nil {
-		log.Println(result.Error)
-		c.String(http.StatusInternalServerError, "UPDATE error")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "invalid json",
+		})
 		c.Abort()
 		return
 	}
 
-	c.String(http.StatusOK, "Department Update Complete")
+	result := db.Model(&department).Where("Department_Name = ?", data.PrevName).Update("Department_Name", data.NewName)
+	if result.Error != nil {
+		log.Println(result.Error)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "UPDATE error",
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"msg": "Department Update Complete",
+	})
 }
 
 /* 기존의 Department 삭제(D) */

@@ -39,12 +39,11 @@ func AddEmployeeDepartment(c *gin.Context) {
 			})
 			c.Abort()
 			return
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"msg": "No such department",
+			})
 		}
-		department.Department_Name = dName
-
-		c.JSON(http.StatusOK, gin.H{
-			"msg": "new department created",
-		})
 	}
 
 	db.Model(&employees[0]).Association("Employee_Departments").Append(&department)

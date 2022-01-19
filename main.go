@@ -16,6 +16,7 @@ var err error
 func main() {
 	err := InitDB()
 	if err != nil {
+		log.Println(err.Error())
 		panic("DB init error")
 	}
 	err = godotenv.Load(".env")

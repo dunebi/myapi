@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -11,9 +10,9 @@ import (
 	"gorm.io/gorm"
 )
 
-/* DB를 생성(test를 위함) */
+/* DB를 생성 */
 func InitDB() (err error) {
-	dsn := "root:1234@tcp(127.0.0.1:3306)/myapi?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := "root:1234@tcp(db:3306)/myapi?charset=utf8mb4&parseTime=True&loc=Local"
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
 	if err != nil {
@@ -65,7 +64,7 @@ func Paging(c *gin.Context) (limit int, page int, sort string) { // return은 li
 	query := c.Request.URL.Query()
 
 	for key, value := range query {
-		fmt.Println(key, value)
+		//fmt.Println(key, value)
 		queryValue := value[len(value)-1]
 		switch key {
 		case "limit":

@@ -43,31 +43,6 @@ func TestAddEmployee(t *testing.T) {
 	db.Unscoped().Where("Department_Name=?", "Test Department").Delete(&Department{})
 }
 
-func TestAddEmployeeBatch(t *testing.T) {
-	err = InitDB()
-	assert.NoError(t, err)
-
-	var result []Employee
-	token, err := JWT.GenerateToken("gotest")
-	assert.NoError(t, err)
-
-	router := gin.Default()
-	router.Use(AuthorizeAccount())
-	router.POST("/api/employee/batch/:count/:days", AddEmployeeBatch)
-
-	w := httptest.NewRecorder()
-	request, _ := http.NewRequest("POST", "/api/employee/batch/150/3", nil)
-	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
-
-	router.ServeHTTP(w, request)
-
-	err = json.Unmarshal(w.Body.Bytes(), &result)
-	assert.NoError(t, err)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	db.Unscoped().Delete(&result)
-}
-
 func TestReadEmployee(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
