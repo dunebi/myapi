@@ -26,9 +26,11 @@ type eData struct {
 
 /* 새로운 Employee 추가(C) */
 func AddEmployee(c *gin.Context) {
-	var data eData
+	var data []eData
 	var department Department
 	var employee Employee
+	var temp string
+	msg := make([]string, 0, 3)
 	err := c.ShouldBindJSON(&data)
 	if err != nil {
 		log.Println(err)
@@ -39,33 +41,39 @@ func AddEmployee(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	//fmt.Println(data)
 
-	employee.Employee_Name = data.EName
-	if data.DName == "" { // No Department Data. Create new employee with no department info
-		db.Create(&employee)
-		c.JSON(http.StatusOK, gin.H{
-			"msg":      "new employee without department created",
-			"employee": employee,
-		})
-		return
-	} else {
-		db.Where("Department_Name = ?", data.DName).Find(&department)
-		if department.ID == 0 { // No such department. Do not Create new employee
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-				"msg": "No such department. Use correct name",
-			})
-			return
+	for i := 0; i < len(data); i++ {
+		employee = Employee{}
+		employee.Employee_Name = data[i].EName
+		if data[i].DName == "" {
+			db.Create(&employee)
+			temp = employee.Employee_Name + ": Create Success without department"
+			msg = append(msg, temp)
+
+		} else {
+			department = Department{}
+			db.Where("Department_Name = ?", data[i].DName).Find(&department)
+			if department.ID == 0 { // department name incorrect. Abort API with msg
+				temp = employee.Employee_Name + ": Create Fail. Department " + data[i].DName + " is not exist"
+				msg = append(msg, temp)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+					"msg":           msg,
+					"not processed": data[i:],
+				})
+				return
+			}
+
+			db.Create(&employee)
+			db.Model(&employee).Association("Employee_Departments").Append(&department)
+
+			temp = employee.Employee_Name + ": Create Success in department " + data[i].DName
+			msg = append(msg, temp)
 		}
-		db.Create(&employee)
-		db.Model(&employee).Association("Employee_Departments").Append(&department)
-
-		c.JSON(http.StatusOK, gin.H{
-			"msg":        "new employee with department created",
-			"employee":   employee,
-			"department": department,
-		})
 	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"msg": msg,
+	})
 }
 
 /* Employee Table 불러오기(R)_By Paging */
@@ -75,7 +83,8 @@ func ReadEmployee(c *gin.Context) {
 	offset := (page - 1) * limit
 
 	//result := db.Find(&employees)
-	result := db.Limit(limit).Offset(offset).Order(sort).Preload("Employee_Departments").Find(&employees)
+	result := db.Limit(limit).Offset(offset).Order(sort).
+		Preload("Employee_Departments").Find(&employees)
 
 	if result.Error != nil {
 		log.Println(result.Error)

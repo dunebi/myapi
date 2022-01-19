@@ -49,9 +49,14 @@ func AddDepartment(c *gin.Context) {
 			log.Println(result.Error)
 			temp = data.DName[i] + ": Create Fail!"
 			msg = append(msg, temp)
-			continue
+
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"msg":           msg,
+				"not processed": data.DName[i:],
+			})
+			return
 		}
-		temp = data.DName[i] + ": Create Success\n"
+		temp = data.DName[i] + ": Create Success"
 		msg = append(msg, temp)
 	}
 
