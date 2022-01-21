@@ -24,6 +24,12 @@ type eData struct {
 	DName string `json:"dname"`
 }
 
+type readEmployee struct {
+	EID        uint     `json:"id"`
+	Name       string   `json:"employee_name"`
+	Department []string `json:"department_name"`
+}
+
 /* 새로운 Employee 추가(C) */
 func AddEmployee(c *gin.Context) {
 	var data []eData
@@ -95,6 +101,16 @@ func ReadEmployee(c *gin.Context) {
 		c.Abort()
 		return
 	}
+	/*
+		var resultEmployees []readEmployee
+		for i := 0; i < len(employees); i++ {
+			tmp := readEmployee{employees[i].ID, employees[i].Employee_Name, nil}
+			for j := 0; j < len(employees[i].Employee_Departments); j++ {
+				tmp.Department = append(tmp.Department, employees[i].Employee_Departments[j].Department_Name)
+			}
+			resultEmployees = append(resultEmployees, tmp)
+		}
+	*/
 
 	c.JSON(http.StatusOK, employees)
 }

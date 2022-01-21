@@ -2,170 +2,243 @@
 package main
 
 import (
-	"errors"
-	"log"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
 	"github.com/dunebi/myapi/JWT"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
 	"gorm.io/gorm"
 )
 
 // Account Table
 type Account struct {
 	gorm.Model
-	Account_Id  string
-	Account_Pwd string
+	Email string `json:"email"`
+	CA    string
 }
 
-/* 암호 해시화 */
-func HashPassword(pwd string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(pwd), 14)
-	if err != nil {
-		return "", errors.New("error") // 에러 반환
-	}
-
-	Hashed_pwd := string(bytes)
-	return Hashed_pwd, nil // 문제가 없으면 error 부분에 nil을 반환
+func LoginGithub(c *gin.Context) {
+	url := oauth2ConfigGithub.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
-/* 암호 확인 (Account의 메소드) */
-func (account *Account) CheckPassword(pwd string) error {
-	err := bcrypt.CompareHashAndPassword([]byte(account.Account_Pwd), []byte(pwd))
+func LoginCallbackGithub(c *gin.Context) {
+	code := c.Query("code")
 
+	tok, err := oauth2ConfigGithub.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		return err
-	}
-	return nil
-}
-
-/* 회원가입 */
-func Register(c *gin.Context) { // gin.Context를 사용. Handler 인 것으로 보임
-	var account Account
-	err := c.ShouldBindJSON(&account) // Context c의 내용을 JSON으로 바인딩해서 account에 넣는 것으로 보임
-
-	if err != nil {
-		log.Println(err) // fmt.Println과 달리 "log" 로 출력되어 조금 더 정보를 담고 있음
-
-		c.JSON(http.StatusBadRequest, gin.H{
-			"msg": "invalid json",
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"msg": "Error on get token",
 		})
-		c.Abort() // exit()와 비슷. 비정상 종료를 야기시킴
-
 		return
 	}
 
-	// pwd hashing
-	pwd, err := HashPassword(account.Account_Pwd)
+	client := oauth2ConfigGithub.Client(oauth2.NoContext, tok)
+	userInfoResp, err := client.Get("https://api.github.com/user")
 	if err != nil {
-		log.Println(err.Error())
-
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "error hashing password",
+			"msg":   "Error on get usrInfo",
+			"error": err.Error(),
 		})
-		c.Abort()
-
-		return
 	}
-	account.Account_Pwd = pwd // 받아온 account의 객체를 hash화해서 저장(불필요할수도? 또는 짜기 나름?)
-
-	// Insert Account data to db(Account Table이 이미 automigrate됐다고 가정)
-	result := db.Create(&Account{Account_Id: account.Account_Id, Account_Pwd: account.Account_Pwd})
-	if result.Error != nil {
-		log.Println(result.Error)
-
+	defer userInfoResp.Body.Close()
+	userInfo, err := ioutil.ReadAll(userInfoResp.Body)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "error createing account",
+			"msg": "Error on read userinfo",
 		})
 		c.Abort()
-
 		return
 	}
 
-	c.JSON(http.StatusOK, account)
+	var account, dbAccount Account
+	json.Unmarshal(userInfo, &account)
+
+	email := account.Email
+	db.Where("Email = ? AND CA = ?", email, "Github").Find(&dbAccount)
+
+	// DB 계정이 없다면 Register
+	if dbAccount.ID == 0 { // No Email Info. Auto register and request re-login
+		account.CA = "Github"
+		result := db.Create(&account)
+		if result.Error != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"msg": "Error on creating Account",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"msg":         "New account created. Please re-login",
+			"accountInfo": account,
+		})
+		return
+	}
+
+	// DB에 계정이 있는 경우. JWT토큰을 생성하여 반환
+	jwtToken, err := JWT.GenerateToken(email)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"msg": "Error on Create JWT token",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"JWT": jwtToken,
+	})
+
+} // localhost:8090/login/github
+
+// Use ngrok
+func LoginFacebook(c *gin.Context) {
+	url := oauth2ConfigFacebook.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	c.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+func LoginCallbackFacebook(c *gin.Context) {
+	code := c.Query("code")
+
+	tok, err := oauth2ConfigFacebook.Exchange(oauth2.NoContext, code)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"msg": "Error on get token",
+		})
+		return
+	}
+
+	client := oauth2ConfigFacebook.Client(oauth2.NoContext, tok)
+	userInfoResp, err := client.Get("https://graph.facebook.com/me?locale=en_US&fields=name,email")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg":   "Error on get usrInfo",
+			"error": err.Error(),
+		})
+	}
+	defer userInfoResp.Body.Close()
+	userInfo, err := ioutil.ReadAll(userInfoResp.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "Error on read userinfo",
+		})
+		c.Abort()
+		return
+	}
+	var account, dbAccount Account
+	json.Unmarshal(userInfo, &account)
+
+	email := account.Email
+	db.Where("Email = ? AND CA = ?", email, "Facebook").Find(&dbAccount)
+
+	// DB 계정이 없다면 Register
+	if dbAccount.ID == 0 { // No Email Info. Auto register and request re-login
+		account.CA = "Facebook"
+		result := db.Create(&account)
+		if result.Error != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"msg": "Error on creating Account",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"msg":         "New account created. Please re-login",
+			"accountInfo": account,
+		})
+		return
+	}
+
+	// DB에 계정이 있는 경우. JWT토큰을 생성하여 반환
+	jwtToken, err := JWT.GenerateToken(email)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"msg": "Error on Create JWT token",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"JWT": jwtToken,
+	})
 
 }
 
-/* 로그인 */
-func Login(c *gin.Context) {
-	var payload JWT.LoginPayload
-	var account Account
-
-	err := c.ShouldBindJSON(&payload) // payload에 로그인 정보(Id, Pwd) 주입
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"msg": "invalid json",
-		})
-		c.Abort()
-		return
-	}
-
-	// DB에 이 ID가 있는지 검사
-	result := db.Where("Account_Id=?", payload.Account_Id).First(&account)
-	if result.Error == gorm.ErrRecordNotFound { // RecordNotFound Error
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"msg": "invalid account id",
-		})
-		c.Abort()
-		return
-	}
-
-	// password 검사
-	err = account.CheckPassword(payload.Account_Pwd)
-	if err != nil {
-		log.Println(err)
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"msg": "invalid account pwd",
-		})
-		c.Abort()
-		return
-	}
-
-	// JWT 토큰 발행
-	signedToken, err := JWT.GenerateToken(account.Account_Id)
-	if err != nil {
-		log.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "error signing token",
-		})
-		c.Abort()
-		return
-	}
-
-	tokenResponse := JWT.LoginResponse{ // string인 LoginResponse를 JSON으로 반환하기 위함
-		Token: signedToken,
-	}
-	//fmt.Println(tokenResponse) // 형태 확인용
-	c.JSON(http.StatusOK, tokenResponse)
+/* 로그인(회원가입) 구글 */
+func LoginGoogle(c *gin.Context) {
+	url := oauth2ConfigGoogle.AuthCodeURL("state", oauth2.AccessTypeOffline)
+	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
-/* 계정 정보를 반환하는 Profile Handler 작성(미들웨어에서 검증이 끝나면 이를 반환할 수 있도록 함. 검증용) */
-func Profile(c *gin.Context) {
-	var account Account
+func LoginCallbackGoogle(c *gin.Context) {
+	code := c.Query("code")
 
-	account_id, _ := c.Get("account_Id")
-	result := db.Where("Account_Id=?", account_id.(string)).First(&account)
-
-	if result.Error == gorm.ErrRecordNotFound {
-		c.JSON(http.StatusNotFound, gin.H{
-			"msg": "account not found",
-		})
-		c.Abort()
-		return
-	}
-
-	if result.Error != nil {
+	tok, err := oauth2ConfigGoogle.Exchange(oauth2.NoContext, code)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"msg": "could not get account profile",
+			"msg": "Error on make token",
+			"err": err,
 		})
 		c.Abort()
 		return
 	}
 
-	account.Account_Pwd = "temp pwd value"
-	c.JSON(http.StatusOK, account)
+	client := oauth2ConfigGoogle.Client(oauth2.NoContext, tok)
+	userInfoResp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg":   "Error on get usrInfo",
+			"error": err.Error(),
+		})
+	}
+	defer userInfoResp.Body.Close()
+	userInfo, err := ioutil.ReadAll(userInfoResp.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"msg": "Error on read userinfo",
+		})
+		c.Abort()
+		return
+	}
+
+	var account, dbAccount Account
+	json.Unmarshal(userInfo, &account)
+
+	email := account.Email
+	db.Where("Email = ? AND CA = ?", email, "Google").Find(&dbAccount)
+
+	// DB 계정이 없다면 Register
+	if dbAccount.ID == 0 { // No Email Info. Auto register and request re-login
+		account.CA = "Google"
+		result := db.Create(&account)
+		if result.Error != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"msg": "Error on creating Account",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"msg":         "New account created. Please re-login",
+			"accountInfo": account,
+		})
+		return
+	}
+
+	// DB에 계정이 있는 경우. JWT토큰을 생성하여 반환
+	jwtToken, err := JWT.GenerateToken(email)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"msg": "Error on Create JWT token",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"JWT": jwtToken,
+	})
 
 }
 

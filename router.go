@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -10,22 +8,20 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	r.GET("/hi", func(c *gin.Context) {
-		c.String(http.StatusOK, "hello")
-	})
+	// callback by oauth CA
+	r.GET("/auth/callback", LoginCallbackGoogle)
+	r.GET("/auth/callback/facebook", LoginCallbackFacebook)
+	r.GET("/auth/callback/github", LoginCallbackGithub)
+
+	r.POST("/init", InitTable)
+	r.DELETE("/delete", DeleteTable)
+	r.GET("/login/google", LoginGoogle)
+	r.GET("/login/facebook", LoginFacebook)
+	r.GET("/login/github", LoginGithub)
 
 	// To run in Postman
 	api := r.Group("/api")
 	{
-		public := api.Group("/public")
-		{
-			public.POST("/init", InitTable)
-			public.DELETE("/delete", DeleteTable)
-			public.POST("/login", Login)
-			public.POST("/register", Register)
-
-		}
-
 		// Use를 통해 Middleware인 AuthorizeAccount를 가져와 MiddleWare에서 검증 진행
 		department := api.Group("/department").Use(AuthorizeAccount())
 		{
