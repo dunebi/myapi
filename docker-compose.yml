@@ -12,9 +12,11 @@ services:
   app:
     build: .
     environment:
-      - PORT=8088
+      - PORT=8090
+    env_file:
+      - .env
     ports:
-      - "8088:8088"
+      - "8090:8090"
     depends_on:
       - db
     restart: always

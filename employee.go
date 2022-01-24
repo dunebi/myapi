@@ -95,6 +95,16 @@ func ReadEmployee(c *gin.Context) {
 		c.Abort()
 		return
 	}
+	/*
+		var resultEmployees []readEmployee
+		for i := 0; i < len(employees); i++ {
+			tmp := readEmployee{employees[i].ID, employees[i].Employee_Name, nil}
+			for j := 0; j < len(employees[i].Employee_Departments); j++ {
+				tmp.Department = append(tmp.Department, employees[i].Employee_Departments[j].Department_Name)
+			}
+			resultEmployees = append(resultEmployees, tmp)
+		}
+	*/
 
 	c.JSON(http.StatusOK, employees)
 }

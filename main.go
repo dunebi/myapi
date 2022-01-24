@@ -10,7 +10,6 @@ import (
 )
 
 var db *gorm.DB
-
 var err error
 
 func main() {
@@ -25,6 +24,7 @@ func main() {
 	}
 
 	r := SetupRouter()
+	//r.RunTLS(fmt.Sprintf(":%s", os.Getenv("PORT")), "server.crt", "server.key")
 
 	r.Run(fmt.Sprintf(":%s", os.Getenv("PORT")))
 }
