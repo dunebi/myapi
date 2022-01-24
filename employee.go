@@ -24,12 +24,6 @@ type eData struct {
 	DName string `json:"dname"`
 }
 
-type readEmployee struct {
-	EID        uint     `json:"id"`
-	Name       string   `json:"employee_name"`
-	Department []string `json:"department_name"`
-}
-
 /* 새로운 Employee 추가(C) */
 func AddEmployee(c *gin.Context) {
 	var data []eData

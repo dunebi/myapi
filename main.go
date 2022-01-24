@@ -6,15 +6,10 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"golang.org/x/oauth2"
 	"gorm.io/gorm"
 )
 
-var oauth2ConfigGoogle *oauth2.Config
-var oauth2ConfigFacebook *oauth2.Config
-var oauth2ConfigGithub *oauth2.Config
 var db *gorm.DB
-
 var err error
 
 func main() {
