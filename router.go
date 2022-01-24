@@ -9,15 +9,16 @@ func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
 	// callback by oauth CA
-	r.GET("/auth/callback", LoginCallbackGoogle)
-	r.GET("/auth/callback/facebook", LoginCallbackFacebook)
-	r.GET("/auth/callback/github", LoginCallbackGithub)
+	r.GET("/auth/callback", LoginCallback)
+	r.GET("/auth/callback/facebook", LoginCallback)
+	r.GET("/auth/callback/github", LoginCallback)
 
 	r.POST("/init", InitTable)
 	r.DELETE("/delete", DeleteTable)
-	r.GET("/login/google", LoginGoogle)
-	r.GET("/login/facebook", LoginFacebook)
-	r.GET("/login/github", LoginGithub)
+	//r.GET("/login/google", LoginGoogle)
+	//r.GET("/login/facebook", LoginFacebook)
+	//r.GET("/login/github", LoginGithub)
+	r.GET("/login/*CA", Login)
 
 	// To run in Postman
 	api := r.Group("/api")

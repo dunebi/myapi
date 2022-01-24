@@ -1,17 +1,5 @@
 package main
 
-import (
-	"bytes"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
-	"github.com/dunebi/myapi/JWT"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-)
-
 /*
 func TestCheckPassword(t *testing.T) {
 	pwd, err := HashPassword("password")
@@ -82,66 +70,3 @@ func TestRegisterInvalidJSON(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 */
-
-func TestLogin(t *testing.T) {
-	account := JWT.LoginPayload{
-		Account_Id:  "gotest",
-		Account_Pwd: "1234",
-	}
-
-	payload, err := json.Marshal(&account)
-	assert.NoError(t, err)
-	request, err := http.NewRequest("POST", "/api/public/login/", bytes.NewBuffer(payload))
-	assert.NoError(t, err)
-
-	err = InitDB()
-	assert.NoError(t, err)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = request
-
-	LoginGoogle(c)
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestLoginInvalidJSON(t *testing.T) {
-	account := "gotest"
-
-	payload, err := json.Marshal(&account)
-	assert.NoError(t, err)
-	request, err := http.NewRequest("POST", "/api/public/login/", bytes.NewBuffer(payload))
-	assert.NoError(t, err)
-
-	err = InitDB()
-	assert.NoError(t, err)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = request
-
-	LoginGoogle(c)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestLoginInvalidPassword(t *testing.T) {
-	account := JWT.LoginPayload{
-		Account_Id:  "gotest",
-		Account_Pwd: "4321",
-	}
-
-	payload, err := json.Marshal(&account)
-	assert.NoError(t, err)
-	request, err := http.NewRequest("POST", "/api/public/login/", bytes.NewBuffer(payload))
-	assert.NoError(t, err)
-
-	err = InitDB()
-	assert.NoError(t, err)
-
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = request
-
-	LoginGoogle(c)
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
