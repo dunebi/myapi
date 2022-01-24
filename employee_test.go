@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/dunebi/myapi/JWT"
+	auth "github.com/dunebi/myapi-oauth"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +20,7 @@ func TestAddEmployee(t *testing.T) {
 	assert.NoError(t, err)
 
 	var result map[string]interface{}
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -48,7 +48,7 @@ func TestReadEmployee(t *testing.T) {
 	assert.NoError(t, err)
 
 	var results []Employee
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -73,7 +73,7 @@ func TestReadEmployeePaging(t *testing.T) {
 	assert.NoError(t, err)
 
 	var results []Employee
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -96,7 +96,7 @@ func TestReadEmployeeInvalidPaging(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -117,7 +117,7 @@ func TestUpdateEmployee(t *testing.T) {
 	assert.NoError(t, err)
 	var result Employee
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -151,7 +151,7 @@ func TestDeleteEmployee(t *testing.T) {
 	assert.NoError(t, err)
 	var result Employee
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -180,7 +180,7 @@ func TestDeleteEmployeeInvalidEid(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -201,7 +201,7 @@ func TestSearchEmployeeByName(t *testing.T) {
 	assert.NoError(t, err)
 	var results []Employee
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -226,7 +226,7 @@ func TestSearchEmployeeByDay(t *testing.T) {
 	assert.NoError(t, err)
 	var results []Employee
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -252,7 +252,7 @@ func TestSearchEmployeeByDayInvalidPaging(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -275,7 +275,7 @@ func TestSearchEmployeeByDayPaging(t *testing.T) {
 	assert.NoError(t, err)
 	var results []Employee
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()

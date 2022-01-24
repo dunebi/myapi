@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/dunebi/myapi/JWT"
+	auth "github.com/dunebi/myapi-oauth"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +18,7 @@ func TestAddDepartment(t *testing.T) {
 	assert.NoError(t, err)
 
 	var result map[string]interface{}
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -45,7 +45,7 @@ func TestReadDepartment(t *testing.T) {
 	assert.NoError(t, err)
 
 	var results []Department
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -70,7 +70,7 @@ func TestReadDepartmentPaging(t *testing.T) {
 	assert.NoError(t, err)
 
 	var results []Department
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -93,7 +93,7 @@ func TestReadDepartmentInvalidPaging(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -114,7 +114,7 @@ func TestUpdateDepartment(t *testing.T) {
 	assert.NoError(t, err)
 	var result Department
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -148,7 +148,7 @@ func TestDeleteDepartment(t *testing.T) {
 	assert.NoError(t, err)
 	var result Department
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -178,7 +178,7 @@ func TestDeleteDepartmentInvalidDid(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -198,7 +198,7 @@ func TestSearchDepartmentByName(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := JWT.GenerateToken("gotest")
+	token, err := auth.GenerateToken("gotest")
 	assert.NoError(t, err)
 
 	router := gin.Default()
