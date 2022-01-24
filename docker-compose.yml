@@ -13,19 +13,8 @@ services:
     build: .
     environment:
       - PORT=8090
-
-      - GOOGLE_CLIENT_ID=355725413990-c77i26u8icgsjr9ht57k6rspo2rm80fc.apps.googleusercontent.com
-      - GOOGLE_CLIENT_SECRET=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
-      - GOOGLE_REDIRECT_URL=http://localhost:8090/auth/callback
-
-      - FACEBOOK_CLIENT_ID=660939391602467
-      - FACEBOOK_CLIENT_SECRET=6438fd007a9feb4ddca7b37c69b79ad1
-      - FACEBOOK_REDIRECT_URL=https://localhost:8090/auth/callback/facebook
-      # - FACEBOOK_REDIRECT_URL=https://84a6-106-243-223-66.ngrok.io/auth/callback/facebook
-
-      - GITHUB_CLIENT_ID=d59e837398ee50e4f3db
-      - GITHUB_CLIENT_SECRET=ee3d376672e64849303efaa013fa6171c48255fe
-      - GITHUB_REDIRECT_URL=http://localhost:8090/auth/callback/github
+    env_file:
+      - .env
     ports:
       - "8090:8090"
     depends_on:
