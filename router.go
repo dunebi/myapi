@@ -2,30 +2,23 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-
-	Oauth "github.com/dunebi/myapi-oauth"
 )
 
 /* API 세팅 */
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
+	loginFunc := Login()
+	callbackFunc := LoginCallback()
+
 	// callback by oauth CA
-	r.GET("/auth/callback/google", func(c *gin.Context) {
-		Oauth.LoginCallback(c, db)
-	})
-	r.GET("/auth/callback/facebook", func(c *gin.Context) {
-		Oauth.LoginCallback(c, db)
-	})
-	r.GET("/auth/callback/github", func(c *gin.Context) {
-		Oauth.LoginCallback(c, db)
-	})
+	r.GET("/auth/callback/google", callbackFunc)
+	r.GET("/auth/callback/facebook", callbackFunc)
+	r.GET("/auth/callback/github", callbackFunc)
 
 	r.POST("/init", InitTable)
 	r.DELETE("/delete", DeleteTable)
-	r.GET("/login/*CA", func(c *gin.Context) {
-		Oauth.Login(c)
-	})
+	r.GET("/login/:CA", loginFunc)
 
 	// To run in Postman
 	api := r.Group("/api")

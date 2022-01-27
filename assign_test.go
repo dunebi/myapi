@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"testing"
 
-	auth "github.com/dunebi/myapi-oauth"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,7 +16,7 @@ func TestAddEmployeeDepartmentById(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := auth.GenerateToken("gotest")
+	token, err := GenerateToken("gotest", "myCA")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -59,7 +58,7 @@ func TestAddEmployeeDepartmentInvalidId(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := auth.GenerateToken("gotest")
+	token, err := GenerateToken("gotest", "myCA")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -79,7 +78,7 @@ func TestDeleteEmployeeDepartment(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := auth.GenerateToken("gotest")
+	token, err := GenerateToken("gotest", "myCA")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -120,7 +119,7 @@ func TestDeleteEmployeeDepartmentInvalidId(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := auth.GenerateToken("gotest")
+	token, err := GenerateToken("gotest", "myCA")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -140,7 +139,7 @@ func TestReadEmployeeInDepartment(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := auth.GenerateToken("gotest")
+	token, err := GenerateToken("gotest", "myCA")
 	assert.NoError(t, err)
 
 	router := gin.Default()
@@ -177,7 +176,7 @@ func TestReadEmployeeInDepartmentInvalidId(t *testing.T) {
 	err = InitDB()
 	assert.NoError(t, err)
 
-	token, err := auth.GenerateToken("gotest")
+	token, err := GenerateToken("gotest", "myCA")
 	assert.NoError(t, err)
 
 	router := gin.Default()

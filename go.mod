@@ -4,11 +4,10 @@ go 1.17
 
 require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/dunebi/myapi-oauth v1.0.1
+	github.com/dunebi/myapi-oauth v1.1.13
 	github.com/gin-gonic/gin v1.7.7
 	github.com/joho/godotenv v1.4.0
 	github.com/stretchr/testify v1.4.0
-	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	gorm.io/driver/mysql v1.2.2
 	gorm.io/gorm v1.22.5
 )
@@ -34,6 +33,7 @@ require (
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
+	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect

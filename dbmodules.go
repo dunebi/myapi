@@ -42,7 +42,7 @@ func InitTable(c *gin.Context) {
 
 /* Table 전체삭제 */
 func DeleteTable(c *gin.Context) {
-	err := db.Migrator().DropTable(&Account{}, &Department{}, &Employee{}, "employee_departments") // DB Table 삭제
+	err := db.Migrator().DropTable(&Department{}, &Employee{}, "employee_departments") // DB Table 삭제
 	if err != nil {
 		log.Println(err)
 
